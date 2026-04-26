@@ -22,6 +22,7 @@ import BrandLogo from "@/components/BrandLogo";
 
 async function fetchAuthedJson(url, token, init = {}) {
   const res = await fetch(url, {
+    cache: "no-store",
     ...init,
     headers: {
       ...(init.headers || {}),

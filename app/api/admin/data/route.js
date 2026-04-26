@@ -3,6 +3,7 @@ import { mapProfileRow, mapRewardRow, mapUploadRow } from "@/lib/supabaseData";
 import { requireAdminFromRequest } from "@/lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(req) {
   try {
@@ -33,13 +34,28 @@ export async function GET(req) {
     if (usersResult.error) throw usersResult.error;
     if (rewardsResult.error) throw rewardsResult.error;
 
-    return NextResponse.json({
-      pendingUploads: (uploadsResult.data || []).map(mapUploadRow),
-      users: (usersResult.data || []).map(mapProfileRow),
-      rewards: (rewardsResult.data || []).map(mapRewardRow),
-    });
+    return NextResponse.json(
+      {
+        pendingUploads: (uploadsResult.data || []).map(mapUploadRow),
+        users: (usersResult.data || []).map(mapProfileRow),
+        rewards: (rewardsResult.data || []).map(mapRewardRow),
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
+        },
+      }
+    );
   } catch (err) {
     console.error("admin/data error:", err);
-    return NextResponse.json({ error: err.message || "Failed to load admin data" }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "Failed to load admin data" },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
+        },
+      }
+    );
   }
 }
