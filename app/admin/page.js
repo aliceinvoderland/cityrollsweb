@@ -13,6 +13,7 @@ import {
   LogOut,
   ExternalLink,
   ShieldAlert,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import { formatTimestamp } from "@/lib/supabaseData";
@@ -47,13 +48,20 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
   const [busy, setBusy] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const accessToken = session?.access_token || "";
 
-  const loadAdminData = useCallback(async () => {
+  const loadAdminData = useCallback(async (options = {}) => {
     if (!accessToken) return;
 
-    setDataLoading(true);
+    const silent = Boolean(options.silent);
+
+    if (silent) {
+      setRefreshing(true);
+    } else {
+      setDataLoading(true);
+    }
     setDataError("");
 
     try {
@@ -67,7 +75,11 @@ export default function AdminPage() {
       setUsers([]);
       setRewards([]);
     } finally {
-      setDataLoading(false);
+      if (silent) {
+        setRefreshing(false);
+      } else {
+        setDataLoading(false);
+      }
     }
   }, [accessToken]);
 
@@ -98,6 +110,29 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isAdmin) return;
     loadAdminData();
+  }, [isAdmin, loadAdminData]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadAdminData({ silent: true });
+      }
+    }, 15000);
+
+    const handleFocus = () => {
+      loadAdminData({ silent: true });
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
+    };
   }, [isAdmin, loadAdminData]);
 
   const handleAction = async (uploadId, action) => {
@@ -166,7 +201,7 @@ export default function AdminPage() {
       </Reveal>
 
       <Reveal delay={0.1}>
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-1 items-center">
           <TabBtn active={tab === "pending"} onClick={() => setTab("pending")} icon={<Receipt size={16} />}>
             Pending
           </TabBtn>
@@ -176,6 +211,14 @@ export default function AdminPage() {
           <TabBtn active={tab === "rewards"} onClick={() => setTab("rewards")} icon={<Gift size={16} />}>
             Rewards
           </TabBtn>
+          <button
+            onClick={() => loadAdminData({ silent: true })}
+            disabled={refreshing}
+            className="glass text-bone/70 hover:text-bone inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition disabled:opacity-60"
+          >
+            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+            Refresh
+          </button>
         </div>
       </Reveal>
 
